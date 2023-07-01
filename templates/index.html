@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Resource Usage</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        #content {
+            width: 80%;
+            height: 80%;
+            position: absolute;
+            top: 10%;
+            left: 10%;
+            overflow: auto;
+        }
+        .chart-container {
+            display: inline-block;
+            width: 40%;
+            height: 80%;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="content">
+        <div class="chart-container">
+            <canvas id="usage-chart"></canvas>
+        </div>
+        <div class="chart-container">
+            <canvas id="bandwidth-chart"></canvas>
+        </div>
+    </div>
+    <script>
+        function bytesToMegabytes(bytes) {
+            return bytes / (1024 * 1024);
+        }
+
+        $(document).ready(function() {
+            var usageCtx = document.getElementById('usage-chart').getContext('2d');
+            var usageChart = new Chart(usageCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'CPU Usage (%)',
+                        data: [],
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }, {
+                        label: 'Memory Usage (%)',
+                        data: [],
+                        borderColor: 'rgb(255, 99, 132)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Usage'
+                            }
+                        }
+                    }
+                }
+            });
+
+            var bandwidthCtx = document.getElementById('bandwidth-chart').getContext('2d');
+            var bandwidthChart = new Chart(bandwidthCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Upload Bandwidth (MB/s)',
+                        data: [],
+                        borderColor: 'rgb(255, 205, 86)',
+                        tension: 0.1
+                    }, {
+                        label: 'Download Bandwidth (MB/s)',
+                        data: [],
+                        borderColor: 'rgb(153, 102, 255)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Bandwidth'
+                            }
+                        }
+                    }
+                }
+            });
+
+            function updateChartData() {
+                $.getJSON('/stats', function(data) {
+                    var labels = data.map(function(point) {
+                        return new Date(point.timestamp).toLocaleTimeString();
+                    });
+
+                    // Update usage chart
+                    usageChart.data.labels = labels;
+                    usageChart.data.datasets[0].data = data.map(function(point) {
+                        return point.cpu_percent;
+                    });
+                    usageChart.data.datasets[1].data = data.map(function(point) {
+                        return point.memory;
+                    });
+                    usageChart.update();
+
+                    // Update bandwidth chart
+                    bandwidthChart.data.labels = labels;
+                    bandwidthChart.data.datasets[0].data = data.map(function(point) {
+                        return bytesToMegabytes(point.bandwidth.bytes_sent);
+                    });
+                    bandwidthChart.data.datasets[1].data = data.map(function(point) {
+                        return bytesToMegabytes(point.bandwidth.bytes_recv);
+                    });
+                    bandwidthChart.update();
+                });
+            }
+
+            // Load data when the page is loaded
+            updateChartData();
+
+            // Update data only when the button is clicked
+            $('#update-data').click(updateChartData);
+        });
+    </script>
+</body>
+</html>
